@@ -32,33 +32,29 @@ def select_crack_node(state: State):
     print("\n" + "="*50)
     print("NETWORK SELECTION")
     print("="*50)
-
+    
     questions = [
         inquirer.List('choice',
                     message="How would you like to select a network?",
                     choices=[
                         "View analyzed options (easiest/hardest)",
                         "View full network list",
-                        "Search by SSID name",
                         ">>> QUIT <<<"
                     ],
                     carousel=True)
     ]
-
+    
     answers = inquirer.prompt(questions)
-
+    
     if answers is None or answers['choice'] == ">>> QUIT <<<":
         print("\n[!] Selection cancelled. Exiting...")
         sys.exit(0)
-
+    
     # Based on choice, show appropriate networks
     if answers['choice'] == "View analyzed options (easiest/hardest)":
         selected = select_network_for_crack(state["analysis"])
-    elif answers['choice'] == "View full network list":
+    else:  # Full network list
         selected = select_from_all_networks(state["networks"])
-    else:  # Search by SSID name
-        from analysis import search_networks_by_ssid
-        selected = search_networks_by_ssid(state["networks"])
     
     print(selected)
     return {"selected_network": selected, "messages": state["messages"] + [AIMessage(content=f"Selected: {selected['ssid']}")]}

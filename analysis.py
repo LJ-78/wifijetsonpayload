@@ -96,14 +96,14 @@ def select_network_for_crack(networks: Dict[str, Dict]) -> Dict:
 
 def select_from_all_networks(networks: List[Dict]) -> Dict:
     """Prompt user to select from all available networks, sorted by time and signal"""
-
+    
     # Filter for access points only
     access_points = [n for n in networks if n.get('type', '').lower() == 'ap' or n.get('type', '').lower() == 'access point']
-
+    
     if not access_points:
         print("[!] No access points found, showing all networks")
         access_points = networks
-
+    
     print(f"\n{'='*80}")
     print(f"ALL ACCESS POINTS ({len(access_points)} found)")
     print(f"{'='*80}")
@@ -236,143 +236,6 @@ def select_from_all_networks(networks: List[Dict]) -> Dict:
     return selected
 
 
-def search_networks_by_ssid(networks: List[Dict]) -> Dict:
-    """Search and select networks by SSID name"""
-
-    # Filter for access points only
-    access_points = [n for n in networks if n.get('type', '').lower() == 'ap' or n.get('type', '').lower() == 'access point']
-
-    if not access_points:
-        print("[!] No access points found, showing all networks")
-        access_points = networks
-
-    print(f"\n{'='*80}")
-    print(f"SEARCH NETWORKS BY SSID")
-    print(f"{'='*80}")
-
-    # Prompt for search term
-    search_questions = [
-        inquirer.Text('search_term',
-                    message="Enter SSID search term (case-insensitive, partial match)")
-    ]
-    search_answer = inquirer.prompt(search_questions)
-
-    if search_answer is None or not search_answer['search_term'].strip():
-        print("[!] No search term provided. Exiting...")
-        sys.exit(0)
-
-    search_term = search_answer['search_term'].strip().lower()
-    original_count = len(access_points)
-
-    # Filter networks by search term
-    filtered_networks = [n for n in access_points if search_term in n.get('ssid', '').lower()]
-
-    print(f"[*] Found {len(filtered_networks)} networks matching '{search_term}' (from {original_count} total)")
-
-    if not filtered_networks:
-        print("[!] No networks match your search. Exiting...")
-        sys.exit(0)
-
-    # Sort by last_time (most recent first), then by signal strength (strongest first)
-    def sort_key(network):
-        # Get timestamp - handle different possible field names
-        timestamp = network.get('last_time', network.get('lastseen', network.get('timestamp', 0)))
-
-        # Convert to comparable format if it's a string
-        if isinstance(timestamp, str):
-            try:
-                # Try to parse ISO format or unix timestamp
-                if 'T' in timestamp:  # ISO format
-                    timestamp = datetime.fromisoformat(timestamp.replace('Z', '+00:00')).timestamp()
-                else:
-                    timestamp = float(timestamp)
-            except:
-                timestamp = 0
-
-        # Signal strength (higher/less negative is better)
-        signal = network.get('signal', -1000)
-        if signal is None:
-            signal = -1000
-
-        # Return tuple for sorting: negative timestamp for descending order, negative signal for descending
-        return (-timestamp, -signal)
-
-    # Sort the filtered networks
-    sorted_networks = sorted(filtered_networks, key=sort_key)
-
-    # Display header
-    print(f"\n{'SSID':<25} | {'MAC Address':<17} | {'Security':<15} | {'Signal':>7} | {'Channel':>7} | {'Last Seen'}")
-    print("-" * 100)
-
-    # Create choices with detailed information
-    choices = []
-    for i, n in enumerate(sorted_networks, 1):
-        # Get timestamp and format it
-        timestamp = n.get('last_time', n.get('lastseen', n.get('timestamp', 'Unknown')))
-        if isinstance(timestamp, (int, float)) and timestamp > 0:
-            time_str = datetime.fromtimestamp(timestamp).strftime('%H:%M:%S')
-        elif isinstance(timestamp, str) and timestamp != 'Unknown':
-            try:
-                if 'T' in timestamp:
-                    dt = datetime.fromisoformat(timestamp.replace('Z', '+00:00'))
-                    time_str = dt.strftime('%H:%M:%S')
-                else:
-                    time_str = timestamp[:8] if len(timestamp) >= 8 else timestamp
-            except:
-                time_str = 'Recent'
-        else:
-            time_str = 'Unknown'
-
-        # Format the choice text with all information
-        ssid = n.get('ssid', 'Hidden')[:24]  # Truncate long SSIDs
-        mac = n.get('mac', 'Unknown MAC')
-        security = n.get('security', 'Unknown')[:14]  # Truncate long security strings
-        signal = n.get('signal', -999)
-        channel = n.get('channel', '?')
-
-        choice_text = f"{i:3}. {ssid:<24} | {mac:<17} | {security:<15} | {signal:>-4}dBm | Ch {channel:>3} | {time_str}"
-        choices.append(choice_text)
-
-    # Add quit option
-    choices.append(">>> QUIT <<<")
-
-    questions = [
-        inquirer.List('network',
-                    message=f"Select network from search results (sorted by time & signal):",
-                    choices=choices,
-                    carousel=True)
-    ]
-    answers = inquirer.prompt(questions)
-
-    # Handle cancellation
-    if answers is None:
-        print("\n[!] Selection cancelled by user. Exiting...")
-        sys.exit(0)
-
-    # Handle quit option
-    selection = answers['network']
-    if selection == ">>> QUIT <<<":
-        print("\n[!] Quit selected. Exiting...")
-        sys.exit(0)
-
-    # Extract MAC address from the selection (it's between the first and second |)
-    try:
-        parts = selection.split('|')
-        selected_mac = parts[1].strip()
-        selected = next(n for n in sorted_networks if n.get('mac', '') == selected_mac)
-    except:
-        # Fallback to index-based selection if parsing fails
-        idx = int(selection.split('.')[0]) - 1
-        selected = sorted_networks[idx]
-
-    print(f"\n[+] Selected: {selected.get('ssid', 'Unknown')} ({selected.get('mac', 'Unknown MAC')})")
-    print(f"    Security: {selected.get('security', 'Unknown')}")
-    print(f"    Signal: {selected.get('signal', -999)}dBm")
-    print(f"    Channel: {selected.get('channel', 'Unknown')}")
-
-    return selected
-
-
 # Helper function to format network details
 def format_network_details(network: Dict) -> str:
     """Format network details for display"""
@@ -392,7 +255,7 @@ def format_network_details(network: Dict) -> str:
 
 
 # Export the main functions
-__all__ = ['find_easiest_and_hardest', 'select_network_for_crack', 'select_from_all_networks', 'search_networks_by_ssid', 'get_difficulty_score']
+__all__ = ['find_easiest_and_hardest', 'select_network_for_crack', 'select_from_all_networks', 'get_difficulty_score']
 
 
 
